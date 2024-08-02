@@ -1,4 +1,5 @@
 import fal_client
+import replicate
 import torch
 import requests
 import numpy as np
@@ -6,7 +7,7 @@ from PIL import Image
 import io
 import os
 
-class FluxAPI:
+class FalFluxAPI:
     @classmethod
     def INPUT_TYPES(cls):
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -68,10 +69,81 @@ class FluxAPI:
         output_image = torch.from_numpy(image)[None,]
         return (output_image,)
 
+class ReplicateFluxAPI:
+    @classmethod
+    def INPUT_TYPES(cls):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        api_keys = [f for f in os.listdir(os.path.join(current_dir, "keys")) if f.endswith('.txt')]
+        return {
+            "required": {
+                "prompt": ("STRING", {"multiline": True}),
+                "model": (["schnell", "dev", "pro"],),
+                "aspect_ratio": (["1:1", "16:9", "21:9", "2:3", "3:2", "4:5", "5:4", "9:16", "9:21"],),
+                "api_key": (api_keys,),
+                "seed": ("INT", {"default": 1337, "min": 1, "max": 16777215}),
+                "cfg_dev_and_pro": ("FLOAT", {"default": 3.5, "min": 1, "max": 10, "step": 0.5, "forceInput": False}),
+                "steps_pro": ("INT", {"default": 25, "min": 1, "max": 50}),
+                "creativity_pro": ("INT", {"default": 2, "min": 1, "max": 4}),
+            },
+        }
+    
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "generate_image"
+    CATEGORY = "ReplicateAPI"
+
+    def generate_image(self, prompt, model, aspect_ratio, api_key, seed, cfg_dev_and_pro, steps_pro, creativity_pro,):
+        #set endpoint and inputs
+        if model == "schnell":
+            model = "black-forest-labs/flux-schnell"
+            input={
+            "prompt": prompt,
+            "seed": seed,
+            "output_format": "png",
+            "disable_safety_checker": True,
+            "aspect_ratio": aspect_ratio,}
+        elif model == "pro":
+            model = "black-forest-labs/flux-pro"
+            if cfg_dev_and_pro > 5: #pro only supports cfg 1-5
+                cfg_dev_and_pro = 5
+            input={
+            "prompt": prompt,
+            "steps": steps_pro,
+            "output_format": "png",
+            "safety_tolerance": 5, #lowest value
+            "aspect_ratio": aspect_ratio,
+            "guidance": cfg_dev_and_pro,
+            "interval": creativity_pro,}   
+        else:
+            model = "black-forest-labs/flux-dev"
+            input={
+            "prompt": prompt,
+            "seed": seed,
+            "output_format": "png",
+            "disable_safety_checker": True,
+            "aspect_ratio": aspect_ratio,
+            "guidance": cfg_dev_and_pro,}
+        #Set api key
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(os.path.join(current_dir, "keys"), api_key), 'r', encoding='utf-8') as file:
+            key = file.read()
+        os.environ["REPLICATE_API_TOKEN"] = key
+        #make request
+        output = replicate.run(model, input=input)
+        image_url = output
+        #Download the image
+        response = requests.get(image_url)
+        image = Image.open(io.BytesIO(response.content))
+        #make image more comfy
+        image = np.array(image).astype(np.float32) / 255.0
+        output_image = torch.from_numpy(image)[None,]
+        return (output_image,)
+
 NODE_CLASS_MAPPINGS = {
-    "FluxAPI": FluxAPI,
+    "FalFluxAPI": FalFluxAPI,
+    "ReplicateFluxAPI": ReplicateFluxAPI,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "FluxAPI": "FluxAPI",
+    "FalFluxAPI": "FalFluxAPI",
+    "ReplicateFluxAPI": "ReplicateFluxAPI",
 }

@@ -1,3 +1,4 @@
 fal-client
+replicate
 requests
 numpy

@@ -14,10 +14,9 @@ class FluxAPI:
         return {
             "required": {
                 "prompt": ("STRING", {"multiline": True}),
-                "endpoint": (["schnell (4+ steps)", "dev (25 steps)"],),
+                "endpoint": (["schnell (4+ steps)", "dev (25 steps)", "pro (25 steps)"],),
                 "resolution": (["1024x1024 (1:1)", "512x512 (1:1)", "768x1024 (4:3)", "576x1024 (9:16)", "1024x720 (3:4)", "1024x576 (16:9)"],),
                 "steps": ("INT", {"default": 4, "min": 1, "max": 50}),
-                "enable_safety_checker": ("BOOLEAN", {"default": False}),
                 "api_key": (api_keys,),
                 "seed": ("INT", {"default": 1337, "min": 1, "max": 16777215})
             },
@@ -27,10 +26,12 @@ class FluxAPI:
     FUNCTION = "generate_image"
     CATEGORY = "FalAPI"
 
-    def generate_image(self, prompt, endpoint, resolution, steps, enable_safety_checker, api_key, seed,):
+    def generate_image(self, prompt, endpoint, resolution, steps, api_key, seed,):
         #set endpoint
         if endpoint == "schnell (4+ steps)":
             endpoint = "fal-ai/flux/schnell"
+        elif endpoint == "pro (25 steps)":
+            endpoint = "fal-ai/flux-pro"
         else:
             endpoint = "fal-ai/flux/dev"
         #convert dimensions
@@ -55,8 +56,7 @@ class FluxAPI:
             "seed": seed,
             "image_size": image_size,
             "num_inference_steps": steps,
-            "num_images": 1,  #Hardcoded to 1 for now
-            "enable_safety_checker": enable_safety_checker},
+            "num_images": 1,}  #Hardcoded to 1 for now
         )
         result = handler.get()
         image_url = result['images'][0]['url']

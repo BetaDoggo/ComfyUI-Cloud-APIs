@@ -1,4 +1,4 @@
-# ComfyUI-Cloud-APIS
+# ComfyUI-Cloud-APIs
 I wanted to use some larger models in my local ComfyUI workflows but I'm too gpu poor. Currently the only model supported is Flux (schnell, dev, and pro) on Fal and Replicate but I'll probably add more when I find the time.
 ![preview](https://github.com/BetaDoggo/ComfyUI-fal-api/blob/main/preview.png)
 # Step by step setup (Fal)

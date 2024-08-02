@@ -1,0 +1,3 @@
+fal-client
+requests
+numpy

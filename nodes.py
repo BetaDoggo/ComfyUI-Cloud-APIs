@@ -30,6 +30,9 @@ class FalFluxAPI:
     CATEGORY = "FalAPI"
 
     def generate_image(self, prompt, endpoint, width, height, steps, api_key, seed, cfg_dev_and_pro):
+        #prevent too many steps error
+        if endpoint == "schnell (4+ steps)" and steps > 8:
+            steps = 8
         #set endpoint
         models = {
             "schnell (4+ steps)": "fal-ai/flux/schnell",

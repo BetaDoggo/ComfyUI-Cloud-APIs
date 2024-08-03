@@ -16,10 +16,12 @@ class FalFluxAPI:
             "required": {
                 "prompt": ("STRING", {"multiline": True}),
                 "endpoint": (["schnell (4+ steps)", "dev (25 steps)", "pro (25 steps)"],),
-                "resolution": (["1024x1024 (1:1)", "512x512 (1:1)", "768x1024 (4:3)", "576x1024 (9:16)", "1024x720 (3:4)", "1024x576 (16:9)"],),
+                "width": ("INT", {"default": 1024, "min": 256, "max": 2048, "step": 64, "forceInput": False}),
+                "height": ("INT", {"default": 1024, "min": 256, "max": 2048, "step": 64, "forceInput": False}),
                 "steps": ("INT", {"default": 4, "min": 1, "max": 50}),
                 "api_key": (api_keys,),
-                "seed": ("INT", {"default": 1337, "min": 1, "max": 16777215})
+                "seed": ("INT", {"default": 1337, "min": 1, "max": 16777215}),
+                "cfg_dev_and_pro": ("FLOAT", {"default": 3.5, "min": 1, "max": 20, "step": 0.5, "forceInput": False}),
             },
         }
     
@@ -27,7 +29,7 @@ class FalFluxAPI:
     FUNCTION = "generate_image"
     CATEGORY = "FalAPI"
 
-    def generate_image(self, prompt, endpoint, resolution, steps, api_key, seed,):
+    def generate_image(self, prompt, endpoint, width, height, steps, api_key, seed, cfg_dev_and_pro):
         #set endpoint
         if endpoint == "schnell (4+ steps)":
             endpoint = "fal-ai/flux/schnell"
@@ -35,16 +37,6 @@ class FalFluxAPI:
             endpoint = "fal-ai/flux-pro"
         else:
             endpoint = "fal-ai/flux/dev"
-        #convert dimensions
-        AR = {
-        "1024x1024 (1:1)": "square_hd",
-        "512x512 (1:1)": "square",
-        "768x1024 (4:3)": "portrait_4_3",
-        "576x1024 (9:16)": "portrait_16_9",
-        "1024x720 (3:4)": "landscape_4_3",
-        "1024x576 (16:9)": "landscape_16_9",
-        }
-        image_size = AR.get(resolution)
         #Set api key
         current_dir = os.path.dirname(os.path.abspath(__file__))
         with open(os.path.join(os.path.join(current_dir, "keys"), api_key), 'r', encoding='utf-8') as file:
@@ -55,7 +47,12 @@ class FalFluxAPI:
         arguments={
             "prompt": prompt,
             "seed": seed,
-            "image_size": image_size,
+            "guidance_scale": cfg_dev_and_pro,
+            "safety_tolerance": 6,
+            "image_size": {
+                "width": width,
+                "height": height,
+            },
             "num_inference_steps": steps,
             "num_images": 1,}  #Hardcoded to 1 for now
         )

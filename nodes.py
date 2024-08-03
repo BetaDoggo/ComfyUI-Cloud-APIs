@@ -31,12 +31,11 @@ class FalFluxAPI:
 
     def generate_image(self, prompt, endpoint, width, height, steps, api_key, seed, cfg_dev_and_pro):
         #set endpoint
-        if endpoint == "schnell (4+ steps)":
-            endpoint = "fal-ai/flux/schnell"
-        elif endpoint == "pro (25 steps)":
-            endpoint = "fal-ai/flux-pro"
-        else:
-            endpoint = "fal-ai/flux/dev"
+        models = {
+            "schnell (4+ steps)": "fal-ai/flux/schnell",
+            "pro (25 steps)": "fal-ai/flux-pro",
+            }
+        endpoint = models.get(endpoint, "fal-ai/flux/dev")
         #Set api key
         current_dir = os.path.dirname(os.path.abspath(__file__))
         with open(os.path.join(os.path.join(current_dir, "keys"), api_key), 'r', encoding='utf-8') as file:
@@ -89,42 +88,28 @@ class ReplicateFluxAPI:
     CATEGORY = "ReplicateAPI"
 
     def generate_image(self, prompt, model, aspect_ratio, api_key, seed, cfg_dev_and_pro, steps_pro, creativity_pro,):
-        #set endpoint and inputs
-        if model == "schnell":
-            model = "black-forest-labs/flux-schnell"
-            input={
-            "prompt": prompt,
-            "seed": seed,
-            "output_format": "png",
-            "disable_safety_checker": True,
-            "aspect_ratio": aspect_ratio,}
-        elif model == "pro":
-            model = "black-forest-labs/flux-pro"
-            if cfg_dev_and_pro > 5: #pro only supports cfg 1-5
-                cfg_dev_and_pro = 5
-            input={
-            "prompt": prompt,
-            "steps": steps_pro,
-            "output_format": "png",
-            "safety_tolerance": 5, #lowest value
-            "aspect_ratio": aspect_ratio,
-            "guidance": cfg_dev_and_pro,
-            "interval": creativity_pro,}   
-        else:
-            model = "black-forest-labs/flux-dev"
-            input={
-            "prompt": prompt,
-            "seed": seed,
-            "output_format": "png",
-            "disable_safety_checker": True,
-            "aspect_ratio": aspect_ratio,
-            "guidance": cfg_dev_and_pro,}
+        #set endpoint
+        models = {
+            "schnell": "black-forest-labs/flux-schnell",
+            "pro": "black-forest-labs/flux-pro",
+        }
+        model = models.get(model, "black-forest-labs/flux-dev")
         #Set api key
         current_dir = os.path.dirname(os.path.abspath(__file__))
         with open(os.path.join(os.path.join(current_dir, "keys"), api_key), 'r', encoding='utf-8') as file:
             key = file.read()
         os.environ["REPLICATE_API_TOKEN"] = key
         #make request
+        input={
+            "prompt": prompt,
+            "steps": steps_pro,
+            "seed": seed,
+            "disable_safety_checker": True,
+            "output_format": "png",
+            "safety_tolerance": 5, #lowest value
+            "aspect_ratio": aspect_ratio,
+            "guidance": cfg_dev_and_pro,
+            "interval": creativity_pro,}  
         output = replicate.run(model, input=input)
         image_url = output
         #Download the image

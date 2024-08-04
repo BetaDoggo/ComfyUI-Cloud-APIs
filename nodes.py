@@ -7,6 +7,81 @@ from PIL import Image
 import io
 import os
 
+class FalAuraFlowAPI:
+    @classmethod
+    def INPUT_TYPES(cls):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        api_keys = [f for f in os.listdir(os.path.join(current_dir, "keys")) if f.endswith('.txt')]
+        return {
+            "required": {
+                "prompt": ("STRING", {"multiline": True}),
+                "steps": ("INT", {"default": 30, "min": 1, "max": 50}),
+                "api_key": (api_keys,),
+                "seed": ("INT", {"default": 1337, "min": 1, "max": 16777215}),
+                "cfg": ("FLOAT", {"default": 3.5, "min": 1, "max": 20, "step": 0.5, "forceInput": False}),
+                "expand_prompt": ("BOOLEAN", {"default": False}),
+            },
+        }
+    
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "generate_image"
+    CATEGORY = "ComfyCloudAPIs"
+
+    def generate_image(self, prompt, steps, api_key, seed, cfg, expand_prompt):
+        #Set api key
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(os.path.join(current_dir, "keys"), api_key), 'r', encoding='utf-8') as file:
+            key = file.read()
+        os.environ["FAL_KEY"] = key
+        handler = fal_client.submit(
+        "fal-ai/aura-flow",
+        arguments={
+            "prompt": prompt,
+            "seed": seed,
+            "guidance_scale": cfg,
+            "num_inference_steps": steps,
+            "num_images": 1, #Hardcoded to 1 for now
+            "expand_prompt": expand_prompt,}
+        )
+        result = handler.get()
+        image_url = result['images'][0]['url']
+        #Download the image
+        response = requests.get(image_url)
+        image = Image.open(io.BytesIO(response.content))
+        #make image more comfy
+        image = np.array(image).astype(np.float32) / 255.0
+        output_image = torch.from_numpy(image)[None,]
+        return (output_image,)
+
+class FluxResolutionPresets:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "aspect_ratio": (["1024x1024 (1:1)", "512x512 (1:1)", "832x1216 (2:3)", "1216x832 (3:2)", "768x1024 (4:3)", "1024x720 (3:4)", "896x1088 (4:5)", "1088x896 (5:4)", "576x1024 (9:16)", "1024x576 (16:9)"],),
+            },
+        }
+    
+    RETURN_TYPES = ("INT","INT",)
+    FUNCTION = "set_resolution"
+    CATEGORY = "ComfyCloudAPIs"
+
+    def set_resolution(self, aspect_ratio):
+        ar = {
+            "1024x1024 (1:1)": (1024, 1024),
+            "512x512 (1:1)": (512, 512),
+            "832x1216 (2:3)": (832, 1216),
+            "1216x832 (3:2)": (1216, 832),
+            "768x1024 (4:3)": (768, 1024),
+            "1024x720 (3:4)": (1024, 720),
+            "896x1088 (4:5)": (896, 1088),
+            "1088x896 (5:4)": (1088, 896),
+            "576x1024 (9:16)": (576, 1024),
+            "1024x576 (16:9)": (1024, 576)
+        }
+        width, height = ar.get(aspect_ratio)
+        return (width, height,)
+
 class FalFluxAPI:
     @classmethod
     def INPUT_TYPES(cls):
@@ -27,7 +102,7 @@ class FalFluxAPI:
     
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "generate_image"
-    CATEGORY = "FalAPI"
+    CATEGORY = "ComfyCloudAPIs"
 
     def generate_image(self, prompt, endpoint, width, height, steps, api_key, seed, cfg_dev_and_pro):
         #prevent too many steps error
@@ -88,7 +163,7 @@ class ReplicateFluxAPI:
     
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "generate_image"
-    CATEGORY = "ReplicateAPI"
+    CATEGORY = "ComfyCloudAPIs"
 
     def generate_image(self, prompt, model, aspect_ratio, api_key, seed, cfg_dev_and_pro, steps_pro, creativity_pro,):
         #set endpoint
@@ -126,9 +201,13 @@ class ReplicateFluxAPI:
 NODE_CLASS_MAPPINGS = {
     "FalFluxAPI": FalFluxAPI,
     "ReplicateFluxAPI": ReplicateFluxAPI,
+    "FluxResolutionPresets": FluxResolutionPresets,
+    "FalAuraFlowAPI": FalAuraFlowAPI,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FalFluxAPI": "FalFluxAPI",
     "ReplicateFluxAPI": "ReplicateFluxAPI",
+    "FluxResolutionPresets": "FluxResolutionPresets",
+    "FalAuraFlowAPI": "FalAuraFlowAPI",
 }

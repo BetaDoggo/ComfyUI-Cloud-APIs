@@ -1,6 +1,8 @@
 # ComfyUI-Cloud-APIs
-I wanted to use some larger models in my local ComfyUI workflows but I'm too gpu poor. Currently the only model supported is Flux (schnell, dev, and pro) on Fal and Replicate but I'll probably add more when I find the time.
-![preview](https://github.com/BetaDoggo/ComfyUI-fal-api/blob/main/preview.png)
+I wanted to use some larger models in my local ComfyUI workflows but I'm too gpu poor. Currently model support is limited but I'll add more when I find the time.
+# Supported Models:
+- Flux (fal and replicate)
+- Auraflow (fal)
 # Quick Setup
 1. Install extension and dependencies (preferably with comfy manager)
 2. Place your api key/token in a text file in ComfyUI-Cloud-APIs/keys
@@ -18,3 +20,4 @@ I wanted to use some larger models in my local ComfyUI workflows but I'm too gpu
 4. Copy the token into a text file in the ComfyUI-Cloud-APIs/keys folder. (there is a placeholder nokey.txt file which you can delete)
 5. Consult https://replicate.com/explore to get an idea of how much each generation will cost
 6. Go to https://replicate.com/account/billing to setup billing when you run out of free usage.
+![preview](https://github.com/BetaDoggo/ComfyUI-fal-api/blob/main/preview.png)

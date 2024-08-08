@@ -19,7 +19,7 @@ class FalAuraFlowAPI:
                 "steps": ("INT", {"default": 30, "min": 1, "max": 50}),
                 "api_key": (api_keys,),
                 "seed": ("INT", {"default": 1337, "min": 1, "max": 16777215}),
-                "cfg": ("FLOAT", {"default": 3.5, "min": 1, "max": 20, "step": 0.5, "forceInput": False}),
+                "cfg": ("FLOAT", {"default": 3.5, "min": 0, "max": 20, "step": 0.5, "forceInput": False}),
                 "expand_prompt": ("BOOLEAN", {"default": False}),
             },
         }
@@ -54,6 +54,64 @@ class FalAuraFlowAPI:
         output_image = torch.from_numpy(image)[None,]
         return (output_image,)
 
+class FalStableCascadeAPI:
+    @classmethod
+    def INPUT_TYPES(cls):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        api_keys = [f for f in os.listdir(os.path.join(current_dir, "keys")) if f.endswith('.txt')]
+        return {
+            "required": {
+                "prompt": ("STRING", {"multiline": True,}),
+                "negative_prompt": ("STRING", {"multiline": True, "default": "ugly, deformed",}),
+                "width": ("INT", {"default": 1024, "min": 256, "max": 2048, "step": 8}),
+                "height": ("INT", {"default": 1024, "min": 256, "max": 2048, "step": 8}),
+                "first_stage_steps": ("INT", {"default": 20, "min": 1, "max": 50}),
+                "second_stage_steps": ("INT", {"default": 10, "min": 1, "max": 24}),
+                "guidance_scale": ("FLOAT", {"default": 4.0, "min": 0.0, "max": 20.0, "step": 0.5}),
+                "decoder_guidance_scale": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 20.0, "step": 0.5}),
+                "api_key": (api_keys,),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 16777215,}),
+            },
+        }
+   
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "generate_image"
+    CATEGORY = "ComfyCloudAPIs"
+
+    def generate_image(self, prompt, negative_prompt, width, height, first_stage_steps, second_stage_steps, guidance_scale, decoder_guidance_scale, api_key, seed):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(os.path.join(current_dir, "keys"), api_key), 'r', encoding='utf-8') as file:
+            key = file.read()
+        os.environ["FAL_KEY"] = key
+
+        handler = fal_client.submit(
+            "fal-ai/stable-cascade",
+            arguments={
+                "prompt": prompt,
+                "negative_prompt": negative_prompt,
+                "image_size": {
+                    "width": width,
+                    "height": height,
+                },
+                "first_stage_steps": first_stage_steps,
+                "second_stage_steps": second_stage_steps,
+                "guidance_scale": guidance_scale,
+                "second_stage_guidance_scale": decoder_guidance_scale,
+                "enable_safety_checker": False,
+                "num_images": 1,
+                "seed": seed,
+            }
+        )
+
+        result = handler.get()
+        image_url = result['images'][0]['url']
+        response = requests.get(image_url)
+        image = Image.open(io.BytesIO(response.content))
+        image = np.array(image).astype(np.float32) / 255.0
+        output_image = torch.from_numpy(image)[None,]
+        
+        return (output_image,)
+
 class FalSoteDiffusionAPI:
     @classmethod
     def INPUT_TYPES(cls):
@@ -67,8 +125,8 @@ class FalSoteDiffusionAPI:
                 "height": ("INT", {"default": 1024, "min": 256, "max": 2048, "step": 8}),
                 "first_stage_steps": ("INT", {"default": 25, "min": 1, "max": 50}),
                 "second_stage_steps": ("INT", {"default": 10, "min": 1, "max": 24}),
-                "guidance_scale": ("FLOAT", {"default": 8.0, "min": 1.0, "max": 20.0, "step": 0.5}),
-                "decoder_guidance_scale": ("FLOAT", {"default": 2.0, "min": 1.0, "max": 20.0, "step": 0.5}),
+                "guidance_scale": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 20.0, "step": 0.5}),
+                "decoder_guidance_scale": ("FLOAT", {"default": 2.0, "min": 0.0, "max": 20.0, "step": 0.5}),
                 "api_key": (api_keys,),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 16777215,}),
             },
@@ -226,7 +284,7 @@ class FalFluxAPI:
                 "steps": ("INT", {"default": 4, "min": 1, "max": 50}),
                 "api_key": (api_keys,),
                 "seed": ("INT", {"default": 1337, "min": 1, "max": 16777215}),
-                "cfg_dev_and_pro": ("FLOAT", {"default": 3.5, "min": 1, "max": 20, "step": 0.5, "forceInput": False}),
+                "cfg_dev_and_pro": ("FLOAT", {"default": 3.5, "min": 0, "max": 20, "step": 0.5, "forceInput": False}),
             },
         }
     
@@ -335,6 +393,7 @@ NODE_CLASS_MAPPINGS = {
     "FalAuraFlowAPI": FalAuraFlowAPI,
     "FalFluxI2IAPI": FalFluxI2IAPI,
     "FalSoteDiffusionAPI": FalSoteDiffusionAPI,
+    "FalStableCascadeAPI": FalStableCascadeAPI,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -344,4 +403,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FalAuraFlowAPI": "FalAuraFlowAPI",
     "FalFluxI2IAPI": "FalFluxI2IAPI",
     "FalSoteDiffusionAPI": "FalSoteDiffusionAPI",
+    "FalStableCascadeAPI": "FalStableCascadeAPI",
 }

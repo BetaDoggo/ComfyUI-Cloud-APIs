@@ -1,8 +1,10 @@
 # ComfyUI-Cloud-APIs
 I wanted to use some larger models in my local ComfyUI workflows but I'm too gpu poor. Currently model support is limited but I'll add more when I find the time.
 # Supported Models:
-- Flux (fal and replicate)
-- Auraflow (fal)
+- Flux t2i (fal and replicate)
+- Flux i2i (fal)
+- Auraflow t2i (fal)
+- SoteDiffusion t2i (fal)
 # Quick Setup
 1. Install extension and dependencies (preferably with comfy manager)
 2. Place your api key/token in a text file in ComfyUI-Cloud-APIs/keys

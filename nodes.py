@@ -377,8 +377,7 @@ class ReplicateFluxAPI:
             "guidance": cfg_dev_and_pro,
             "interval": creativity_pro,}  
         output = replicate.run(model, input=input)
-        image_url = output
-        #Download the image
+        image_url = output[0] if isinstance(output, list) else output
         response = requests.get(image_url)
         image = Image.open(io.BytesIO(response.content))
         #make image more comfy

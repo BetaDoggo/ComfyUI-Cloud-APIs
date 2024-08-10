@@ -278,7 +278,7 @@ class FalFluxAPI:
         return {
             "required": {
                 "prompt": ("STRING", {"multiline": True}),
-                "endpoint": (["schnell (4+ steps)", "dev (25 steps)", "pro (25 steps)"],),
+                "endpoint": (["schnell (4+ steps)", "dev (25 steps)", "pro (25 steps)", "realism (25 steps)",],),
                 "width": ("INT", {"default": 1024, "min": 256, "max": 2048, "step": 16, "forceInput": False}),
                 "height": ("INT", {"default": 1024, "min": 256, "max": 2048, "step": 16, "forceInput": False}),
                 "steps": ("INT", {"default": 4, "min": 1, "max": 50}),
@@ -300,6 +300,7 @@ class FalFluxAPI:
         models = {
             "schnell (4+ steps)": "fal-ai/flux/schnell",
             "pro (25 steps)": "fal-ai/flux-pro",
+            "realism (25 steps)": "fal-ai/flux-realism",
             }
         endpoint = models.get(endpoint, "fal-ai/flux/dev")
         #Set api key
@@ -377,7 +378,7 @@ class ReplicateFluxAPI:
             "guidance": cfg_dev_and_pro,
             "interval": creativity_pro,}  
         output = replicate.run(model, input=input)
-        image_url = output[0] if isinstance(output, list) else output
+        image_url = output[0] if isinstance(output, list) else output #replicate started returning a different format, this works for both
         response = requests.get(image_url)
         image = Image.open(io.BytesIO(response.content))
         #make image more comfy

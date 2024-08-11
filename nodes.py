@@ -8,6 +8,59 @@ from PIL import Image
 import io
 import os
 
+class FalLLaVAAPI:
+    @classmethod
+    def INPUT_TYPES(cls):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        api_keys = [f for f in os.listdir(os.path.join(current_dir, "keys")) if f.endswith('.txt')]
+        return {
+            "required": {
+                "image": ("IMAGE", {"forceInput": True,}),
+                "prompt": ("STRING", {"multiline": True, "default": "Describe this image"}),
+                "max_tokens": ("INT", {"default": 64, "min": 16, "max": 512, "step": 1}),
+                "temp": ("FLOAT", {"default": 0.2, "min": 0, "max": 1}),
+                "top_p": ("FLOAT", {"default": 1, "min": 0, "max": 1}),
+                "model": (["LLavaV15_13B", "LLavaV16_34B"],),
+                "api_key": (api_keys,),
+            },
+        }
+    
+    RETURN_TYPES = ("STRING",)
+    FUNCTION = "describe_image"
+    CATEGORY = "ComfyCloudAPIs"
+
+    def describe_image(self, image, prompt, max_tokens, temp, top_p, model, api_key,):
+        #Set api key
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(os.path.join(current_dir, "keys"), api_key), 'r', encoding='utf-8') as file:
+            key = file.read()
+        os.environ["FAL_KEY"] = key
+        models = {"LLavaV15_13B": "fal-ai/llavav15-13b",
+                  "LLavaV16_34B": "fal-ai/llava-next"}
+        endpoint = models.get(model)
+        #Convert from image tensor to array
+        image_np = 255. * image.cpu().numpy().squeeze()
+        image_np = np.clip(image_np, 0, 255).astype(np.uint8)
+        img = Image.fromarray(image_np).convert('L')
+        #upload image
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG")
+        file = buffered.getvalue()
+        image_url = fal_client.upload(file, "image/png")
+        handler = fal_client.submit(
+        endpoint,
+        arguments={
+            "image_url": image_url,
+            "prompt": prompt,
+            "max_tokens": max_tokens,
+            "temperature": temp,
+            "top_p": top_p,
+        })
+        result = handler.get()
+        output_text = result['output']
+        return (output_text,)
+
+
 class FalAuraFlowAPI:
     @classmethod
     def INPUT_TYPES(cls):
@@ -167,7 +220,6 @@ class FalSoteDiffusionAPI:
         image = Image.open(io.BytesIO(response.content))
         image = np.array(image).astype(np.float32) / 255.0
         output_image = torch.from_numpy(image)[None,]
-        
         return (output_image,)
 
 class FalFluxI2IAPI:
@@ -193,6 +245,11 @@ class FalFluxI2IAPI:
     CATEGORY = "ComfyCloudAPIs"
 
     def generate_image(self, image, prompt, strength, steps, api_key, seed, cfg, no_downscale):
+        #Set api key
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(os.path.join(current_dir, "keys"), api_key), 'r', encoding='utf-8') as file:
+            key = file.read()
+        os.environ["FAL_KEY"] = key
         #Convert from image tensor to array
         image_np = 255. * image.cpu().numpy().squeeze()
         image_np = np.clip(image_np, 0, 255).astype(np.uint8)
@@ -211,11 +268,6 @@ class FalFluxI2IAPI:
         img.save(buffered, format="PNG")
         file = buffered.getvalue()
         image_url = fal_client.upload(file, "image/png")
-        #Set api key
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        with open(os.path.join(os.path.join(current_dir, "keys"), api_key), 'r', encoding='utf-8') as file:
-            key = file.read()
-        os.environ["FAL_KEY"] = key
         handler = fal_client.submit(
         "fal-ai/flux/dev/image-to-image",
         arguments={
@@ -394,6 +446,7 @@ NODE_CLASS_MAPPINGS = {
     "FalFluxI2IAPI": FalFluxI2IAPI,
     "FalSoteDiffusionAPI": FalSoteDiffusionAPI,
     "FalStableCascadeAPI": FalStableCascadeAPI,
+    "FalLLaVAAPI": FalLLaVAAPI,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -404,4 +457,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FalFluxI2IAPI": "FalFluxI2IAPI",
     "FalSoteDiffusionAPI": "FalSoteDiffusionAPI",
     "FalStableCascadeAPI": "FalStableCascadeAPI",
+    "FalLLaVAAPI": "FalLLaVAAPI",
 }

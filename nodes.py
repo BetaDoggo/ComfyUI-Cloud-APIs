@@ -367,7 +367,7 @@ class FalFluxAPI:
             "prompt": prompt,
             "seed": seed,
             "guidance_scale": cfg_dev_and_pro,
-            "safety_tolerance": 6,
+            "safety_tolerance": 5,
             "image_size": {
                 "width": width,
                 "height": height,

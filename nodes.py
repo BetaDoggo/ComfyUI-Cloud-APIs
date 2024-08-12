@@ -280,6 +280,7 @@ class FalFluxI2IAPI:
                 "height": height},
             "strength": strength,
             "guidance_scale": cfg,
+            "enable_safety_checker": False,
             "num_inference_steps": steps,
             "num_images": 1, #Hardcoded to 1 for now
         })
@@ -372,6 +373,7 @@ class FalFluxAPI:
                 "height": height,
             },
             "num_inference_steps": steps,
+            "enable_safety_checker": False,
             "num_images": 1,}  #Hardcoded to 1 for now
         )
         result = handler.get()

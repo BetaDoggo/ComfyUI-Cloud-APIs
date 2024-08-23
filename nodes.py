@@ -1,6 +1,6 @@
 import fal_client
 import replicate
-import base64
+import json
 import torch
 import requests
 import numpy as np
@@ -218,6 +218,117 @@ class FalSoteDiffusionAPI:
         image_url = result['images'][0]['url']
         response = requests.get(image_url)
         image = Image.open(io.BytesIO(response.content))
+        image = np.array(image).astype(np.float32) / 255.0
+        output_image = torch.from_numpy(image)[None,]
+        return (output_image,)
+
+class FalAddLora:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "lora_url": ("STRING", {"multiline": False}),
+                "scale": ("FLOAT", {"default": 1, "min": 0.1, "max": 4}),
+            },
+            "optional":{
+                "loras": ("STRING", {"forceInput": True,}),
+            }
+        }
+    
+    RETURN_TYPES = ("STRING",)
+    FUNCTION = "string_lora"
+    CATEGORY = "ComfyCloudAPIs"
+
+    def string_lora(self, lora_url, scale, loras=None):
+        if loras is not None:
+            lora_dict = json.loads(loras)
+        else:
+            lora_dict = {"loras": []}
+        lora_dict["loras"].append({"path": lora_url, "scale": scale})
+        output_loras = json.dumps(lora_dict)
+        return (output_loras,)
+
+class FalFluxLoraAPI:
+    @classmethod
+    def INPUT_TYPES(cls):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        api_keys = [f for f in os.listdir(os.path.join(current_dir, "keys")) if f.endswith('.txt')]
+        return {
+            "required": {
+                "loras": ("STRING", {"forceInput": True,}),
+                "prompt": ("STRING", {"multiline": True}),
+                "width": ("INT", {"default": 1024, "min": 256, "max": 2048, "step": 16, "forceInput": False}),
+                "height": ("INT", {"default": 1024, "min": 256, "max": 2048, "step": 16, "forceInput": False}),
+                "steps": ("INT", {"default": 25, "min": 1, "max": 50}),
+                "api_key": (api_keys,),
+                "seed": ("INT", {"default": 1337, "min": 1, "max": 16777215}),
+                "cfg": ("FLOAT", {"default": 3.5, "min": 1, "max": 20, "step": 0.5, "forceInput": False}),
+                "no_downscale": ("BOOLEAN", {"default": False,}),
+                "i2i_strength": ("FLOAT", {"default": 0.90, "min": 0.01, "max": 1, "step": 0.01}),
+            },
+            "optional":{
+                "image": ("IMAGE", {"forceInput": True,}),
+            }
+        }
+    
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "generate_image"
+    CATEGORY = "ComfyCloudAPIs"
+
+    def generate_image(self, loras, prompt, width, height, steps, api_key, seed, cfg, no_downscale, i2i_strength, image=None,):
+        #Set api key
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(os.path.join(current_dir, "keys"), api_key), 'r', encoding='utf-8') as file:
+            key = file.read()
+        os.environ["FAL_KEY"] = key
+        full_args = {
+            "prompt": prompt,
+            "seed": seed,
+            "steps": steps,
+            "image_size": {
+                "width": width,
+                "height": height},
+            "guidance_scale": cfg,
+            "enable_safety_checker": False,
+            "num_inference_steps": steps,
+            "num_images": 1, #Hardcoded to 1 for now
+        }
+        loras = json.loads(loras)
+        endpoint = "fal-ai/flux-lora"
+        if image is not None:
+            endpoint = "fal-ai/flux-lora/image-to-image"
+            #Convert from image tensor to array
+            image_np = 255. * image.cpu().numpy().squeeze()
+            image_np = np.clip(image_np, 0, 255).astype(np.uint8)
+            img = Image.fromarray(image_np).convert('L')
+            #downscale image to prevent excess cost
+            width, height = img.size #get size for checking
+            max_dimension = max(width, height)
+            scale_factor = 1024 / max_dimension
+            if scale_factor < 1 and not no_downscale:
+                new_width = int(width * scale_factor)
+                new_height = int(height * scale_factor)
+                img = img.resize((new_width, new_height), Image.LANCZOS)
+            width, height = img.size #get size for api
+            #upload image
+            buffered = io.BytesIO()
+            img.save(buffered, format="PNG")
+            file = buffered.getvalue()
+            image_url = fal_client.upload(file, "image/png")
+            #setup img2img
+            i2i_args = {
+                "image_url": image_url,
+                "strength": i2i_strength,
+            }
+            full_args.update(i2i_args)
+        full_args.update(loras)
+        handler = fal_client.submit(endpoint, arguments= full_args)
+        result = handler.get()
+        image_url = result['images'][0]['url']
+        #Download the image
+        response = requests.get(image_url)
+        image = Image.open(io.BytesIO(response.content))
+        #make image more comfy
         image = np.array(image).astype(np.float32) / 255.0
         output_image = torch.from_numpy(image)[None,]
         return (output_image,)
@@ -449,6 +560,8 @@ NODE_CLASS_MAPPINGS = {
     "FalSoteDiffusionAPI": FalSoteDiffusionAPI,
     "FalStableCascadeAPI": FalStableCascadeAPI,
     "FalLLaVAAPI": FalLLaVAAPI,
+    "FalFluxLoraAPI": FalFluxLoraAPI,
+    "FalAddLora": FalAddLora,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -460,4 +573,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FalSoteDiffusionAPI": "FalSoteDiffusionAPI",
     "FalStableCascadeAPI": "FalStableCascadeAPI",
     "FalLLaVAAPI": "FalLLaVAAPI",
+    "FalAddLora": "FalAddLora",
 }

@@ -3,6 +3,7 @@ I wanted to use some larger models in my local ComfyUI workflows but I'm too gpu
 # Supported Models:
 - Flux t2i (fal and replicate)
 - Flux i2i (fal)
+- Flux w/loras and i2i (fal)
 - Auraflow t2i (fal)
 - SoteDiffusion t2i (fal)
 - StableCascade t2i (fal)

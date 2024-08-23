@@ -1,0 +1,15 @@
+[project]
+name = "Comfyui-Cloud-APIs"
+description = "Nodes for using models from online providers. Flux, Auraflow, SoteDiffusion, etc."
+version = "1.0.0"
+license = {file = "LICENSE"}
+dependencies = ["fal-client", "replicate", "requests", "numpy", "pillow"]
+
+[project.urls]
+Repository = "https://github.com/BetaDoggo/ComfyUI-Cloud-APIs"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "betadoggo"
+DisplayName = "ComfyUI-Cloud-APIs"
+Icon = ""

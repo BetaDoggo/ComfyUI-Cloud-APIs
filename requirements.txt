@@ -2,3 +2,4 @@ fal-client
 replicate
 requests
 numpy
+pillow

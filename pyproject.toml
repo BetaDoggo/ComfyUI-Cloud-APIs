@@ -1,5 +1,5 @@
 [project]
-name = "Comfyui-Cloud-APIs"
+name = "comfyui-cloud-apis"
 description = "Nodes for using models from online providers. Flux, Auraflow, SoteDiffusion, etc."
 version = "1.0.0"
 license = {file = "LICENSE"}

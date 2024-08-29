@@ -3,3 +3,5 @@ replicate
 requests
 numpy
 pillow
+websocket-client
+uuid

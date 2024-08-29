@@ -7,6 +7,8 @@ import numpy as np
 from PIL import Image
 import io
 import os
+import websocket
+import uuid
 
 class FalLLaVAAPI:
     @classmethod
@@ -60,7 +62,6 @@ class FalLLaVAAPI:
         output_text = result['output']
         return (output_text,)
 
-
 class FalAuraFlowAPI:
     @classmethod
     def INPUT_TYPES(cls):
@@ -105,7 +106,7 @@ class FalAuraFlowAPI:
         #make image more comfy
         image = np.array(image).astype(np.float32) / 255.0
         output_image = torch.from_numpy(image)[None,]
-        return (output_image,)
+        return (output_image,) 
 
 class FalStableCascadeAPI:
     @classmethod
@@ -434,6 +435,112 @@ class FluxResolutionPresets:
         width, height = ar.get(aspect_ratio)
         return (width, height,)
 
+class RunwareAddLora:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "lora_air": ("STRING", {"multiline": False}),
+                "weight": ("FLOAT", {"default": 1, "min": 0.1, "max": 4}),
+            },
+            "optional":{
+                "loras": ("STRING", {"forceInput": True,}),
+            }
+        }
+    
+    RETURN_TYPES = ("STRING",)
+    FUNCTION = "string_lora"
+    CATEGORY = "ComfyCloudAPIs"
+
+    def string_lora(self, lora_air, weight, loras=None):
+        if loras is not None:
+            lora_dict = json.loads(loras)
+        else:
+            lora_dict = {"lora": []}
+        lora_dict["lora"].append({"model": lora_air, "weight": weight})
+        output_loras = json.dumps(lora_dict)
+        return (output_loras,)
+
+class RunWareAPI:
+    @classmethod
+    def INPUT_TYPES(cls):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        api_keys = [f for f in os.listdir(os.path.join(current_dir, "keys")) if f.endswith('.txt')]
+        return {
+            "required": {
+                "positive_prompt": ("STRING", {"multiline": True}),
+                "negative_prompt": ("STRING", {"multiline": True}),
+                "width": ("INT", {"default": 1024, "min": 512, "max": 2048, "step": 16, "forceInput": False}),
+                "height": ("INT", {"default": 1024, "min": 512, "max": 2048, "step": 16, "forceInput": False}),
+                "steps": ("INT", {"default": 20, "min": 1, "max": 100}),
+                "api_key": (api_keys,),
+                "seed": ("INT", {"default": 1337, "min": 1, "max": 16777215}),
+                "cfg": ("FLOAT", {"default": 7, "min": 0, "max": 30, "step": 0.5, "forceInput": False}),
+                "model_air": ("STRING",), # this expects a model name formatted with civit's air system. They have their selection here: https://docs.runware.ai/en/image-inference/models#model-explorer
+            },
+            "optional": {
+                "loras": ("STRING", {"forceInput": True}),
+            }
+        }
+    
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "generate_image"
+    CATEGORY = "ComfyCloudAPIs"
+
+    def generate_image(self, positive_prompt, negative_prompt, width, height, steps, api_key, seed, cfg, model_air, loras=None):
+        # Set api key
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(os.path.join(current_dir, "keys"), api_key), 'r', encoding='utf-8') as file:
+            key = file.read()
+        # connect to api websocket
+        ws = websocket.create_connection("wss://ws-api.runware.ai/v1")
+        # authenticate
+        auth_request = [
+            {
+                "taskType": "authentication",
+                "apiKey": key,
+            }
+        ]
+        ws.send(json.dumps(auth_request))
+        auth_response = ws.recv()
+        print("auth:" + auth_response)
+        # create request
+        image_request = [
+            {
+                "taskType": "imageInference",
+                "taskUUID": str(uuid.uuid4()), # create a random uuidv4
+                "outputType": "URL",
+                "outputFormat": "PNG",
+                "positivePrompt": positive_prompt,
+                "negativePrompt": negative_prompt,  
+                "height": height,
+                "width": width,
+                "model": model_air,
+                "steps": steps,
+                "seed": seed,
+                "CFGScale": cfg,
+                "numberResults": 1
+            }
+        ]
+        
+        if loras is not None:
+            loras = json.loads(loras)
+            image_request[0].update(loras)
+
+        ws.send(json.dumps(image_request))
+        response = ws.recv()
+        print("runware response:" + response)
+        result = json.loads(response)
+        image_url = result['data'][0]['imageURL']
+        # Download the image
+        response = requests.get(image_url)
+        image = Image.open(io.BytesIO(response.content))
+        # Convert image to ComfyUI format
+        image = np.array(image).astype(np.float32) / 255.0
+        output_image = torch.from_numpy(image)[None,]
+        ws.close()
+        return (output_image,)
+
 class FalFluxAPI:
     @classmethod
     def INPUT_TYPES(cls):
@@ -562,6 +669,8 @@ NODE_CLASS_MAPPINGS = {
     "FalLLaVAAPI": FalLLaVAAPI,
     "FalFluxLoraAPI": FalFluxLoraAPI,
     "FalAddLora": FalAddLora,
+    "RunWareAPI": RunWareAPI,
+    "RunwareAddLora": RunwareAddLora,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -574,4 +683,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FalStableCascadeAPI": "FalStableCascadeAPI",
     "FalLLaVAAPI": "FalLLaVAAPI",
     "FalAddLora": "FalAddLora",
+    "RunWareAPI": "RunWareAPI",
+    "RunwareAddLora": "RunwareAddLora",
 }

@@ -1,7 +1,7 @@
 # ComfyUI-Cloud-APIs
 I wanted to use some larger models in my local ComfyUI workflows but I'm too gpu poor. Currently model support is limited but I'll add more when I find the time.
 # Supported Models:
-- Flux t2i (fal and replicate)
+- Flux t2i (fal, replicate, runware)
 - Flux i2i (fal)
 - Flux w/loras and i2i (fal)
 - Auraflow t2i (fal)
@@ -9,6 +9,8 @@ I wanted to use some larger models in my local ComfyUI workflows but I'm too gpu
 - StableCascade t2i (fal)
 - LLaVA 1.5 13B i2t (fal)
 - LLaVA 1.6 34B i2t (fal)
+- SDv1 t2i w/loras (runware)
+- SDXL t2i w/loras (runware)
 # Quick Setup
 1. Install extension and dependencies (preferably with comfy manager)
 2. Place your api key/token in a text file in ComfyUI-Cloud-APIs/keys

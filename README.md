@@ -28,4 +28,6 @@ I wanted to use some larger models in my local ComfyUI workflows but I'm too gpu
 4. Copy the token into a text file in the ComfyUI-Cloud-APIs/keys folder. (there is a placeholder nokey.txt file which you can delete)
 5. Consult https://replicate.com/explore to get an idea of how much each generation will cost
 6. Go to https://replicate.com/account/billing to setup billing when you run out of free usage.
+# Previews
 ![preview](https://github.com/BetaDoggo/ComfyUI-fal-api/blob/main/preview.png)
+![i2ipreview](https://github.com/BetaDoggo/ComfyUI-Cloud-APIs/blob/main/fali2iwloraworkflow.png)

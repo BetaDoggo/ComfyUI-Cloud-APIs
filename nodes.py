@@ -43,7 +43,7 @@ class FalLLaVAAPI:
         #Convert from image tensor to array
         image_np = 255. * image.cpu().numpy().squeeze()
         image_np = np.clip(image_np, 0, 255).astype(np.uint8)
-        img = Image.fromarray(image_np).convert('L')
+        img = Image.fromarray(image_np)
         #upload image
         buffered = io.BytesIO()
         img.save(buffered, format="PNG")
@@ -301,7 +301,7 @@ class FalFluxLoraAPI:
             #Convert from image tensor to array
             image_np = 255. * image.cpu().numpy().squeeze()
             image_np = np.clip(image_np, 0, 255).astype(np.uint8)
-            img = Image.fromarray(image_np).convert('L')
+            img = Image.fromarray(image_np)
             #downscale image to prevent excess cost
             width, height = img.size #get size for checking
             max_dimension = max(width, height)
@@ -365,7 +365,7 @@ class FalFluxI2IAPI:
         #Convert from image tensor to array
         image_np = 255. * image.cpu().numpy().squeeze()
         image_np = np.clip(image_np, 0, 255).astype(np.uint8)
-        img = Image.fromarray(image_np).convert('L')
+        img = Image.fromarray(image_np)
         #downscale image to prevent excess cost
         width, height = img.size #get size for checking
         max_dimension = max(width, height)

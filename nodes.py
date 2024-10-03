@@ -549,7 +549,7 @@ class FalFluxAPI:
         return {
             "required": {
                 "prompt": ("STRING", {"multiline": True}),
-                "endpoint": (["schnell (4+ steps)", "dev (25 steps)", "pro (25 steps)", "realism (25 steps)",],),
+                "endpoint": (["schnell (4+ steps)", "dev (25+ steps)", "pro 1.1", "realism (25+ steps)", "pro (25+ steps)",],),
                 "width": ("INT", {"default": 1024, "min": 256, "max": 2048, "step": 16, "forceInput": False}),
                 "height": ("INT", {"default": 1024, "min": 256, "max": 2048, "step": 16, "forceInput": False}),
                 "steps": ("INT", {"default": 4, "min": 1, "max": 50}),
@@ -570,8 +570,9 @@ class FalFluxAPI:
         #set endpoint
         models = {
             "schnell (4+ steps)": "fal-ai/flux/schnell",
-            "pro (25 steps)": "fal-ai/flux-pro",
-            "realism (25 steps)": "fal-ai/flux-realism",
+            "pro (25+ steps)": "fal-ai/flux-pro",
+            "realism (25+ steps)": "fal-ai/flux-realism",
+            "pro 1.1": "fal-ai/flux-pro/v1.1",
             }
         endpoint = models.get(endpoint, "fal-ai/flux/dev")
         #Set api key
@@ -612,7 +613,7 @@ class ReplicateFluxAPI:
         return {
             "required": {
                 "prompt": ("STRING", {"multiline": True}),
-                "model": (["schnell", "dev", "pro"],),
+                "model": (["schnell", "dev", "pro 1.1", "pro"],),
                 "aspect_ratio": (["1:1", "16:9", "21:9", "2:3", "3:2", "4:5", "5:4", "9:16", "9:21"],),
                 "api_key": (api_keys,),
                 "seed": ("INT", {"default": 1337, "min": 1, "max": 16777215}),

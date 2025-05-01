@@ -9,6 +9,10 @@ import io
 import os
 import websocket
 import uuid
+import tempfile
+
+from comfy_api.input_impl import VideoFromFile
+from comfy.comfy_types import IO, ComfyNodeABC
 
 class SplitImages:
     @classmethod
@@ -90,6 +94,87 @@ class FalLLaVAAPI:
         result = handler.get()
         output_text = result['output']
         return (output_text,)
+
+class LoadVideoFromURL:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "url": ("STRING", {"default": "https://v3.fal.media/files/koala/VvGXP5xEhTR9ovGjpulJ7_output.mp4"})
+            },
+        }
+    
+    RETURN_TYPES = (IO.VIDEO,)
+    FUNCTION = "load_video"
+    CATEGORY = "ComfyCloudAPIs"
+
+    def load_video(self, url):
+        response = requests.get(url, stream=True)
+        response.raise_for_status()  # Raise error on invalid URLs
+
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, "downloaded_video.mp4")
+        with open(temp_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=1024):
+                if chunk:
+                    f.write(chunk)
+
+        return (VideoFromFile(temp_path),)
+
+class FalVeo2ImagetoVideo:
+    @classmethod
+    def INPUT_TYPES(cls):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        api_keys = [f for f in os.listdir(os.path.join(current_dir, "keys")) if f.endswith('.txt')]
+        return {
+            "required": {
+                "image": ("IMAGE", {"forceInput": True,}),
+                "prompt": ("STRING", {"multiline": True, "default": ""}),
+                "duration": (["5s","6s","7s","8s"],),
+                "api_key": (api_keys,),
+            }
+        }
+    
+    RETURN_TYPES = (IO.VIDEO,)
+    FUNCTION = "generate_video"
+    CATEGORY = "ComfyCloudAPIs"
+
+    def generate_video(self, image, prompt, duration, api_key,):
+        #Set api key
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(os.path.join(current_dir, "keys"), api_key), 'r', encoding='utf-8') as file:
+            key = file.read()
+        os.environ["FAL_KEY"] = key
+        endpoint = "fal-ai/veo2/image-to-video"
+        #Convert from image tensor to array
+        image_np = 255. * image.cpu().numpy().squeeze()
+        image_np = np.clip(image_np, 0, 255).astype(np.uint8)
+        img = Image.fromarray(image_np)
+        #upload image
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG")
+        file = buffered.getvalue()
+        image_url = fal_client.upload(file, "image/png")
+        handler = fal_client.submit(
+        endpoint,
+        arguments={
+            "image_url": image_url,
+            "prompt": prompt,
+            "duration": duration,
+            "aspect_ratio": "auto",
+        })
+        result = handler.get()
+        output_url = result['video']['url']
+
+        response = requests.get(output_url, stream=True)
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, "downloaded_video.mp4")
+        with open(temp_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=1024):
+                if chunk:
+                    f.write(chunk)
+
+        return (VideoFromFile(temp_path),)
 
 class FalAuraFlowAPI:
     @classmethod
@@ -714,6 +799,8 @@ NODE_CLASS_MAPPINGS = {
     "RunWareAPI": RunWareAPI,
     "RunwareAddLora": RunwareAddLora,
     "SplitImages": SplitImages,
+    "LoadVideoFromURL": LoadVideoFromURL,
+    "FalVeo2ImagetoVideo": FalVeo2ImagetoVideo,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -729,4 +816,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "RunWareAPI": "RunWareAPI",
     "RunwareAddLora": "RunwareAddLora",
     "SplitImages": "SplitImages",
+    "LoadVideoFromURL": "LoadVideoFromURL",
+    "FalVeo2ImagetoVideo": "FalVeo2ImagetoVideo",
 }

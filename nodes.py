@@ -785,6 +785,156 @@ class ReplicateFluxAPI:
         output_image = torch.from_numpy(image)[None,]
         return (output_image,)
 
+class ModelsLabFluxAPI:
+    """ComfyUI node for ModelsLab text-to-image using Flux and community models."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        api_keys = [f for f in os.listdir(os.path.join(current_dir, "keys")) if f.endswith('.txt')]
+        return {
+            "required": {
+                "prompt": ("STRING", {"multiline": True}),
+                "negative_prompt": ("STRING", {"multiline": True, "default": "ugly, deformed, bad anatomy"}),
+                "model_id": (["flux", "sdxl", "realistic-vision-v6", "dreamshaper-8", "anything-v5"], {"default": "flux"}),
+                "width": ("INT", {"default": 1024, "min": 256, "max": 1024, "step": 8}),
+                "height": ("INT", {"default": 1024, "min": 256, "max": 1024, "step": 8}),
+                "num_inference_steps": ("INT", {"default": 30, "min": 1, "max": 50}),
+                "guidance_scale": ("FLOAT", {"default": 7.5, "min": 1.0, "max": 20.0, "step": 0.5}),
+                "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
+                "api_key": (api_keys,),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "generate_image"
+    CATEGORY = "ComfyCloudAPIs/ModelsLab"
+
+    def generate_image(self, prompt, negative_prompt, model_id, width, height,
+                       num_inference_steps, guidance_scale, seed, api_key):
+        # Load API key
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(os.path.join(current_dir, "keys"), api_key), 'r', encoding='utf-8') as file:
+            key = file.read().strip()
+
+        payload = {
+            "key": key,
+            "prompt": prompt,
+            "negative_prompt": negative_prompt,
+            "model_id": model_id,
+            "width": str(width),
+            "height": str(height),
+            "samples": "1",
+            "num_inference_steps": str(num_inference_steps),
+            "guidance_scale": guidance_scale,
+            "safety_checker": "no",
+        }
+        if seed != -1:
+            payload["seed"] = seed
+
+        response = requests.post(
+            "https://modelslab.com/api/v6/images/text2img",
+            json=payload,
+            timeout=120,
+        )
+        response.raise_for_status()
+        result = response.json()
+
+        if result.get("status") == "error":
+            raise RuntimeError(f"ModelsLab API error: {result.get('message', 'Unknown error')}")
+
+        image_url = result["output"][0]
+        img_response = requests.get(image_url)
+        image = Image.open(io.BytesIO(img_response.content)).convert("RGB")
+        image = np.array(image).astype(np.float32) / 255.0
+        output_image = torch.from_numpy(image)[None,]
+        return (output_image,)
+
+
+class ModelsLabTextToVideoAPI:
+    """ComfyUI node for ModelsLab text-to-video generation."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        api_keys = [f for f in os.listdir(os.path.join(current_dir, "keys")) if f.endswith('.txt')]
+        return {
+            "required": {
+                "prompt": ("STRING", {"multiline": True}),
+                "negative_prompt": ("STRING", {"multiline": True, "default": "low quality, blurry"}),
+                "model_id": (["cogvideox-5b", "wan-t2v"], {"default": "cogvideox-5b"}),
+                "width": ("INT", {"default": 1024, "min": 256, "max": 1280, "step": 8}),
+                "height": ("INT", {"default": 576, "min": 256, "max": 720, "step": 8}),
+                "num_frames": ("INT", {"default": 16, "min": 8, "max": 49}),
+                "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
+                "api_key": (api_keys,),
+            },
+        }
+
+    RETURN_TYPES = (IO.VIDEO,)
+    FUNCTION = "generate_video"
+    CATEGORY = "ComfyCloudAPIs/ModelsLab"
+
+    def generate_video(self, prompt, negative_prompt, model_id, width, height, num_frames, seed, api_key):
+        import time
+        # Load API key
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(os.path.join(current_dir, "keys"), api_key), 'r', encoding='utf-8') as file:
+            key = file.read().strip()
+
+        payload = {
+            "key": key,
+            "prompt": prompt,
+            "negative_prompt": negative_prompt,
+            "model_id": model_id,
+            "width": str(width),
+            "height": str(height),
+            "num_frames": num_frames,
+        }
+        if seed != -1:
+            payload["seed"] = seed
+
+        response = requests.post(
+            "https://modelslab.com/api/v6/video/text2video",
+            json=payload,
+            timeout=30,
+        )
+        response.raise_for_status()
+        result = response.json()
+
+        if result.get("status") == "error":
+            raise RuntimeError(f"ModelsLab API error: {result.get('message', 'Unknown error')}")
+
+        # Handle async processing
+        if result.get("status") == "processing":
+            request_id = result.get("id")
+            print(f"ModelsLab: Video generation processing (id={request_id}), polling...")
+            for _ in range(60):
+                time.sleep(5)
+                fetch_response = requests.post(
+                    f"https://modelslab.com/api/v6/video/fetch/{request_id}",
+                    json={"key": key},
+                    timeout=30,
+                )
+                fetch_result = fetch_response.json()
+                if fetch_result.get("status") == "success":
+                    result = fetch_result
+                    break
+            else:
+                raise RuntimeError("ModelsLab: Video generation timed out after 5 minutes")
+
+        video_url = result["output"][0]
+        video_response = requests.get(video_url, stream=True)
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, "modelslab_video.mp4")
+        with open(temp_path, 'wb') as f:
+            for chunk in video_response.iter_content(chunk_size=1024):
+                if chunk:
+                    f.write(chunk)
+
+        return (VideoFromFile(temp_path),)
+
+
 NODE_CLASS_MAPPINGS = {
     "FalFluxAPI": FalFluxAPI,
     "ReplicateFluxAPI": ReplicateFluxAPI,
@@ -801,6 +951,8 @@ NODE_CLASS_MAPPINGS = {
     "SplitImages": SplitImages,
     "LoadVideoFromURL": LoadVideoFromURL,
     "FalVeo2ImagetoVideo": FalVeo2ImagetoVideo,
+    "ModelsLabFluxAPI": ModelsLabFluxAPI,
+    "ModelsLabTextToVideoAPI": ModelsLabTextToVideoAPI,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -818,4 +970,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SplitImages": "SplitImages",
     "LoadVideoFromURL": "LoadVideoFromURL",
     "FalVeo2ImagetoVideo": "FalVeo2ImagetoVideo",
+    "ModelsLabFluxAPI": "ModelsLab Text-to-Image",
+    "ModelsLabTextToVideoAPI": "ModelsLab Text-to-Video",
 }

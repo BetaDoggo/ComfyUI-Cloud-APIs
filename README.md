@@ -1,3 +1,6 @@
+# Archive notice
+I haven't touched this in nearly a year and I don't plan on coming back to it at this point. Feel free to make your own fork if you want to add additional nodes or fixes.
+
 # ComfyUI-Cloud-APIs
 I wanted to use some larger models in my local ComfyUI workflows but I'm too gpu poor. Currently model support is limited but I'll add more when I find the time.
 # Supported Models:
